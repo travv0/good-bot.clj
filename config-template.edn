@@ -1,0 +1,5 @@
+;; rename file to config.edn to use with bot
+{:token "" ; discord api token
+ :dict-key "" ; dicionaryapi.com token
+ :urban-key "" ; urbandictionary api token
+ :playing nil} ; "playing" status in discord user list
