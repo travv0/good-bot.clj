@@ -35,20 +35,23 @@
 (defn define? [msg]
   (-> msg str/lower-case (str/starts-with? "!define ")))
 
-(defn build-define-output [word definition part-of-speech]
-  (when definition
-    (let [definitions (match definition
-                             [d] d
-                             defs (str/join
-                                   "\n\n"
-                                   (map (fn [i def] (str i ". " def))
-                                        (drop 1 (range))
-                                        defs)))]
-      (str "**" word "**"
-           (if part-of-speech
-             (str " *" part-of-speech "*")
-             "")
-           "\n" definitions))))
+(defn build-define-output
+  ([word definitions]
+   (build-define-output word definitions nil))
+  ([word definitions part-of-speech]
+   (when-not (empty? definitions)
+     (let [definitions (match definitions
+                              [d] d
+                              defs (str/join
+                                    "\n\n"
+                                    (map (fn [i def] (str i ". " def))
+                                         (drop 1 (range))
+                                         defs)))]
+       (str "**" word "**"
+            (if part-of-speech
+              (str " *" part-of-speech "*")
+              "")
+            "\n" definitions)))))
 
 (defn get-merriam-output [word]
   (let [response (json/read-str
@@ -72,10 +75,9 @@
                               :headers {:x-rapidapi-key urban-key
                                         :x-rapidapi-host "mashape-community-urban-dictionary.p.rapidapi.com"
                                         :useQueryString "true"}})))
-        result (as-> response <>
-                 (get <> "list")
-                 (map #(get % "definition") <>)
-                 (build-define-output word <> nil))]
+        result (->> (get response "list")
+                    (map #(get % "definition"))
+                    (build-define-output word))]
     (if (empty? result) nil result)))
 
 (defn get-define-output [word]
