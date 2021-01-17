@@ -139,9 +139,6 @@
 
            :else (rand-nth ["what u want" "stfu" "u r ugly" "i love u"])))))
 
-(defn liar? [msg]
-  (-> msg str/lower-case (str/starts-with? "-liar")))
-
 (defn create-message [channel-id msg]
   (discord-rest/create-message! (:rest @state)
                                 channel-id
@@ -149,11 +146,13 @@
 
 (defmethod handle-event :message-create
   [_ {:keys [guild-id channel-id author content mentions]}]
-  (when-not (:bot author)
+  (cond
+    (= (:id author) "235148962103951360")
+    (create-message channel-id "Carl is a cuck")
+
+    (not (:bot author))
     (cond (russian-roulette? content) (russian-roulette guild-id channel-id author)
           (define? content) (define content channel-id)
-          (liar? content) (do (Thread/sleep 500)
-                              (create-message channel-id "Carl is a cuck"))
           (mentions-me? mentions) (respond content channel-id))))
 
 (defmethod handle-event :typing-start
