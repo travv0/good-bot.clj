@@ -132,6 +132,11 @@
                (str/includes? msg "gn"))
            "gn"
 
+           (and (str/includes? msg "how")
+                (or (str/includes? msg " u")
+                    (str/includes? msg " you")))
+           "i am fine thank u and u?"
+
            :else (rand-nth ["what u want" "stfu" "u r ugly" "i love u"])))))
 
 (defn liar? [msg]
@@ -147,7 +152,8 @@
   (when-not (:bot author)
     (cond (russian-roulette? content) (russian-roulette guild-id channel-id author)
           (define? content) (define content channel-id)
-          (liar? content) (create-message channel-id "Carl is a cuck")
+          (liar? content) (do (Thread/sleep 500)
+                              (create-message channel-id "Carl is a cuck"))
           (mentions-me? mentions) (respond content channel-id))))
 
 (defmethod handle-event :typing-start
