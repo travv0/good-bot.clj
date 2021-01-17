@@ -7,6 +7,8 @@
                  [org.suskalo/discljord "1.1.1"]
                  [org.clojure/data.json "1.0.0"]
                  [org.clojure/core.match "1.0.0"]
-                 [clj-http "3.11.0"]]
+                 [clj-http "3.11.0"]
+                 [nrepl "0.8.3"]
+                 [cider/cider-nrepl "0.25.2"]]
   :repl-options {:init-ns bigbot.core}
   :main bigbot.core)

@@ -8,11 +8,15 @@
             [discljord.connections :as discord-ws]
             [discljord.formatting :refer [mention-user]]
             [discljord.events :refer [message-pump!]]
-            [clj-http.client :as http]))
+            [clj-http.client :as http]
+            [nrepl.server :refer [start-server stop-server]]
+            [cider.nrepl :refer (cider-nrepl-handler)]))
 
-(def state (atom nil))
+(defonce server (start-server :port 7888 :handler cider-nrepl-handler))
 
-(def bot-id (atom nil))
+(defonce state (atom nil))
+
+(defonce bot-id (atom nil))
 
 (def config (edn/read-string (slurp "config.edn")))
 
@@ -130,11 +134,20 @@
 
            :else (rand-nth ["what u want" "stfu" "u r ugly" "i love u"])))))
 
+(defn liar? [msg]
+  (-> msg str/lower-case (str/starts-with? "-liar")))
+
+(defn create-message [channel-id msg]
+  (discord-rest/create-message! (:rest @state)
+                                channel-id
+                                :content msg))
+
 (defmethod handle-event :message-create
   [_ {:keys [guild-id channel-id author content mentions]}]
   (when-not (:bot author)
     (cond (russian-roulette? content) (russian-roulette guild-id channel-id author)
           (define? content) (define content channel-id)
+          (liar? content) (create-message channel-id "Carl is a cuck")
           (mentions-me? mentions) (respond content channel-id))))
 
 (defmethod handle-event :typing-start
