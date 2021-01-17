@@ -86,11 +86,10 @@
       (str "No definition found for **" word "**")))
 
 (defn define [msg channel-id]
-  (let [words (rest (str/split msg #" "))]
-    (doseq [word words]
-      (discord-rest/create-message! (:rest @state)
-                                    channel-id
-                                    :content (get-define-output word)))))
+  (let [phrase (str/join " " (rest (str/split msg #" ")))]
+    (discord-rest/create-message! (:rest @state)
+                                  channel-id
+                                  :content (get-define-output phrase))))
 
 (defn mentions-me? [mentions]
   (some #{@bot-id} (map :id mentions)))
@@ -109,6 +108,7 @@
 
            (or (str/includes? msg "hi")
                (str/includes? msg "hello")
+               (str/includes? msg "yo")
                (str/includes? msg "sup")
                (and (str/includes? msg "what")
                     (str/includes? msg "up"))
@@ -120,7 +120,15 @@
                (str/includes? msg "welcum"))
            "thx"
 
-           :else (rand-nth ["what u want" "stfu"])))))
+           (or (str/includes? msg "mornin")
+               (str/includes? msg "gm"))
+           "gm"
+
+           (or (str/includes? msg "night")
+               (str/includes? msg "gn"))
+           "gn"
+
+           :else (rand-nth ["what u want" "stfu" "u r ugly" "i love u"])))))
 
 (defmethod handle-event :message-create
   [_ {:keys [guild-id channel-id author content mentions]}]
