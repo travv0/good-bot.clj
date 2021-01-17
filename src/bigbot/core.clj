@@ -12,8 +12,6 @@
             [nrepl.server :refer [start-server stop-server]]
             [cider.nrepl :refer (cider-nrepl-handler)]))
 
-(defonce server (start-server :port 7888 :handler cider-nrepl-handler))
-
 (defonce state (atom nil))
 
 (defonce bot-id (atom nil))
@@ -23,6 +21,9 @@
 (def dict-key (:dict-key config))
 
 (def urban-key (:urban-key config))
+
+(defonce server (start-server :port (:nrepl-port config)
+                              :handler cider-nrepl-handler))
 
 (defmulti handle-event (fn [type _data] type))
 
