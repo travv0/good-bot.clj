@@ -4,6 +4,7 @@
             [clojure.data.json :as json]
             [clojure.core.async :refer [chan close!]]
             [clojure.core.match :refer [match]]
+            [clojure.tools.logging :as log]
             [discljord.messaging :as discord-rest]
             [discljord.connections :as discord-ws]
             [discljord.formatting :refer [mention-user]]
@@ -27,15 +28,20 @@
 
 (defmulti handle-event (fn [type _data] type))
 
+(defn create-message! [channel-id msg]
+  (discord-rest/create-message! (:rest @state)
+                                channel-id
+                                :content msg))
+
 (defn russian-roulette? [msg]
   (-> msg str/lower-case (str/starts-with? "!rr")))
 
 (defn russian-roulette [guild-id channel-id author]
   (if (= 0 (rand-int 6))
     (let [msg "Bang!"]
-      (discord-rest/create-message! (:rest @state) channel-id :content msg)
+      (create-message! channel-id msg)
       (discord-rest/create-guild-ban! (:rest @state) guild-id author :reason msg))
-    (discord-rest/create-message! (:rest @state) channel-id :content "Click.")))
+    (create-message! channel-id "Click.")))
 
 (defn define? [msg]
   (-> msg str/lower-case (str/starts-with? "!define ")))
@@ -92,19 +98,15 @@
 
 (defn define [msg channel-id]
   (let [phrase (str/join " " (rest (str/split msg #" ")))]
-    (discord-rest/create-message! (:rest @state)
-                                  channel-id
-                                  :content (get-define-output phrase))))
+    (create-message! channel-id (get-define-output phrase))))
 
 (defn mentions-me? [mentions]
   (some #{@bot-id} (map :id mentions)))
 
 (defn respond [msg channel-id]
   (let [msg (str/lower-case msg)]
-    (discord-rest/create-message!
-     (:rest @state)
+    (create-message!
      channel-id
-     :content
      (cond (or (str/includes? msg "thanks")
                (str/includes? msg "thank")
                (str/includes? msg "thx")
@@ -140,16 +142,11 @@
 
            :else (rand-nth ["what u want" "stfu" "u r ugly" "i love u"])))))
 
-(defn create-message [channel-id msg]
-  (discord-rest/create-message! (:rest @state)
-                                channel-id
-                                :content msg))
-
 (defmethod handle-event :message-create
   [_ {:keys [guild-id channel-id author content mentions]}]
   (cond
     (= (:id author) "235148962103951360")
-    (create-message channel-id "Carl is a cuck")
+    (create-message! channel-id "Carl is a cuck")
 
     (not (:bot author))
     (cond (russian-roulette? content) (russian-roulette guild-id channel-id author)
@@ -157,11 +154,9 @@
           (mentions-me? mentions) (respond content channel-id))))
 
 (defmethod handle-event :typing-start
-  [_ {:keys [channel-id author content]}]
+  [_ {:keys [channel-id user-id] :as data}]
   (when (= 0 (rand-int 1000))
-    (discord-rest/create-message! (:rest @state)
-                                  channel-id
-                                  :content (str "shut up <@" author ">"))))
+    (create-message! channel-id (str "shut up <@" user-id ">"))))
 
 (defmethod handle-event :ready
   [_ _]
@@ -169,7 +164,8 @@
     (discord-ws/status-update! (:gateway @state)
                                :activity (discord-ws/create-activity :name (:playing config)))))
 
-(defmethod handle-event :default [_ _])
+(defmethod handle-event :default [event-type _]
+  (log/info "unhandled event:" event-type))
 
 (defn start-bot! [token & intents]
   (let [event-channel (chan 100)
@@ -185,7 +181,7 @@
   (close! events))
 
 (defn -main [& args]
-  (reset! state (start-bot! (:token config) :guild-messages))
+  (reset! state (start-bot! (:token config) :guild-messages :guild-message-typing))
   (reset! bot-id (:id @(discord-rest/get-current-user! (:rest @state))))
   (try
     (message-pump! (:events @state) handle-event)
