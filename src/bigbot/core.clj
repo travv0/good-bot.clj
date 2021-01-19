@@ -27,6 +27,9 @@
 
 (def command-prefix (or (:command-prefix config) "!"))
 
+(def misc-responses (let [responses (:responses config)]
+                      (if (empty? responses) ["hi"] responses)))
+
 (defonce server (start-server :port (:nrepl-port config)
                               :handler cider-nrepl-handler))
 
@@ -145,7 +148,7 @@
                     (str/includes? msg " you")))
            "i am fine thank u and u?"
 
-           :else (rand-nth ["what u want" "stfu" "u r ugly" "i love u"])))))
+           :else (rand-nth misc-responses)))))
 
 (defmethod handle-event :message-create
   [_ {:keys [guild-id channel-id author content mentions]}]
