@@ -19,9 +19,11 @@
 
 (def config (edn/read-string (slurp "config.edn")))
 
-(def dict-key (:dict-key config))
+(def dict-key (let [key (:dict-key config)]
+                (if (empty? key) nil key)))
 
-(def urban-key (:urban-key config))
+(def urban-key (let [key (:urban-key config)]
+                 (if (empty? key) nil key)))
 
 (def command-prefix (or (:command-prefix config) "!"))
 
@@ -64,31 +66,33 @@
             "\n" definitions)))))
 
 (defn get-merriam-output [word]
-  (let [response (json/read-str
-                  (:body
-                   (http/get (str "https://dictionaryapi.com/api/v3/references/collegiate/json/"
-                                  word)
-                             {:query-params {:key dict-key}})))
-        result (->> response
-                    (map #(build-define-output word
-                                               (get % "shortdef")
-                                               (get % "fl")))
-                    (remove nil?)
-                    (str/join "\n\n"))]
-    (if (empty? result) nil result)))
+  (when dict-key
+    (let [response (json/read-str
+                    (:body
+                     (http/get (str "https://dictionaryapi.com/api/v3/references/collegiate/json/"
+                                    word)
+                               {:query-params {:key dict-key}})))
+          result (->> response
+                      (map #(build-define-output word
+                                                 (get % "shortdef")
+                                                 (get % "fl")))
+                      (remove nil?)
+                      (str/join "\n\n"))]
+      (if (empty? result) nil result))))
 
 (defn get-urban-output [word]
-  (let [response (json/read-str
-                  (:body
-                   (http/get "https://mashape-community-urban-dictionary.p.rapidapi.com/define"
-                             {:query-params {:term word}
-                              :headers {:x-rapidapi-key urban-key
-                                        :x-rapidapi-host "mashape-community-urban-dictionary.p.rapidapi.com"
-                                        :useQueryString "true"}})))
-        result (->> (get response "list")
-                    (map #(get % "definition"))
-                    (build-define-output word))]
-    (if (empty? result) nil result)))
+  (when urban-key
+    (let [response (json/read-str
+                    (:body
+                     (http/get "https://mashape-community-urban-dictionary.p.rapidapi.com/define"
+                               {:query-params {:term word}
+                                :headers {:x-rapidapi-key urban-key
+                                          :x-rapidapi-host "mashape-community-urban-dictionary.p.rapidapi.com"
+                                          :useQueryString "true"}})))
+          result (->> (get response "list")
+                      (map #(get % "definition"))
+                      (build-define-output word))]
+      (if (empty? result) nil result))))
 
 (defn get-define-output [word]
   (or (get-merriam-output word)
