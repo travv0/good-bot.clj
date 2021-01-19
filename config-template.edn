@@ -1,6 +1,7 @@
 ;; rename file to config.edn to use with bot
 {:token "" ; discord api token
- :nrepl-port 7888 ; port to pass to nrepl start-server
  :dict-key "" ; dicionaryapi.com token
  :urban-key "" ; urbandictionary api token
+ :nrepl-port 7888 ; port to pass to nrepl start-server
+ :command-prefix "!" ; prefix to use for bot commands
  :playing nil} ; "playing" status in discord user list

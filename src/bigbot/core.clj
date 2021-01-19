@@ -23,6 +23,8 @@
 
 (def urban-key (:urban-key config))
 
+(def command-prefix (or (:command-prefix config) "!"))
+
 (defonce server (start-server :port (:nrepl-port config)
                               :handler cider-nrepl-handler))
 
@@ -33,8 +35,8 @@
                                 channel-id
                                 :content msg))
 
-(defn russian-roulette? [msg]
-  (-> msg str/lower-case (str/starts-with? "!rr")))
+(defn command? [command msg]
+  (-> msg str/lower-case (str/starts-with? (str command-prefix command))))
 
 (defn russian-roulette [guild-id channel-id author]
   (if (= 0 (rand-int 6))
@@ -42,9 +44,6 @@
       (create-message! channel-id msg)
       (discord-rest/create-guild-ban! (:rest @state) guild-id author :reason msg))
     (create-message! channel-id "Click.")))
-
-(defn define? [msg]
-  (-> msg str/lower-case (str/starts-with? "!define ")))
 
 (defn build-define-output
   ([word definitions]
@@ -98,7 +97,9 @@
 
 (defn define [msg channel-id]
   (let [phrase (str/join " " (rest (str/split msg #" ")))]
-    (create-message! channel-id (get-define-output phrase))))
+    (if (empty? phrase)
+      (create-message! channel-id "Missing word/phrase to define")
+      (create-message! channel-id (get-define-output phrase)))))
 
 (defn mentions-me? [mentions]
   (some #{@bot-id} (map :id mentions)))
@@ -149,8 +150,8 @@
     (create-message! channel-id "Carl is a cuck")
 
     (not (:bot author))
-    (cond (russian-roulette? content) (russian-roulette guild-id channel-id author)
-          (define? content) (define content channel-id)
+    (cond (command? "rr" content) (russian-roulette guild-id channel-id author)
+          (command? "define" content) (define content channel-id)
           (mentions-me? mentions) (respond content channel-id))))
 
 (defmethod handle-event :typing-start
