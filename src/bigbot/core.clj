@@ -27,8 +27,7 @@
 
 (def command-prefix (or (:command-prefix config) "!"))
 
-(def misc-responses (let [responses (:responses config)]
-                      (if (empty? responses) ["hi"] responses)))
+(def responses (atom (edn/read-string (slurp "responses.edn"))))
 
 (defonce server (start-server :port (:nrepl-port config)
                               :handler cider-nrepl-handler))
@@ -148,7 +147,25 @@
                     (str/includes? msg " you")))
            "i am fine thank u and u?"
 
-           :else (rand-nth misc-responses)))))
+           :else (rand-nth @responses)))))
+
+(defn add-response [message channel-id]
+  (let [response (str/join " " (rest (str/split message #" ")))]
+    (swap! responses conj response)
+    (spit "responses.edn" @responses)
+    (create-message! channel-id (str "Added **" response "** to responses"))))
+
+(defn remove-response [message channel-id]
+  (let [response (str/join " " (rest (str/split message #" ")))]
+    (if (some #{response} @responses)
+      (do
+        (swap! responses #(vec (remove (partial = response) %)))
+        (spit "responses.edn" @responses)
+        (create-message! channel-id (str "Removed **" response "** from responses")))
+      (create-message! channel-id (str "Response **" response "** not found")))))
+
+(defn list-responses [channel-id]
+  (create-message! channel-id (str/join "\n" @responses)))
 
 (defmethod handle-event :message-create
   [_ {:keys [guild-id channel-id author content mentions]}]
@@ -159,6 +176,9 @@
     (not (:bot author))
     (cond (command? "rr" content) (russian-roulette guild-id channel-id author)
           (command? "define" content) (define content channel-id)
+          (command? "add" content) (add-response content channel-id)
+          (command? "remove" content) (remove-response content channel-id)
+          (command? "list" content) (list-responses channel-id)
           (mentions-me? mentions) (respond content channel-id))))
 
 (defmethod handle-event :typing-start
