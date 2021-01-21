@@ -42,6 +42,10 @@
 (defn command? [command msg]
   (-> msg str/lower-case (str/starts-with? (str command-prefix command))))
 
+(defn drop-command [message]
+  (let [without-prefix (str/replace-first message command-prefix "")]
+    (str/join " " (rest (str/split without-prefix #" ")))))
+
 (defn russian-roulette [guild-id channel-id author]
   (if (= 0 (rand-int 6))
     (let [msg "Bang!"]
@@ -102,7 +106,7 @@
       (str "No definition found for **" word "**")))
 
 (defn define [msg channel-id]
-  (let [phrase (str/join " " (rest (str/split msg #" ")))]
+  (let [phrase (drop-command msg)]
     (if (empty? phrase)
       (create-message! channel-id "Missing word/phrase to define")
       (create-message! channel-id (get-define-output phrase)))))
@@ -150,13 +154,13 @@
            :else (rand-nth @responses)))))
 
 (defn add-response [message channel-id]
-  (let [response (str/join " " (rest (str/split message #" ")))]
+  (let [response (drop-command message)]
     (swap! responses conj response)
     (spit "responses.edn" @responses)
     (create-message! channel-id (str "Added **" response "** to responses"))))
 
 (defn remove-response [message channel-id]
-  (let [response (str/join " " (rest (str/split message #" ")))]
+  (let [response (drop-command message)]
     (if (some #{response} @responses)
       (do
         (swap! responses #(vec (remove (partial = response) %)))
