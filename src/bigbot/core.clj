@@ -27,7 +27,8 @@
 
 (def command-prefix (or (:command-prefix config) "!"))
 
-(def responses (atom (edn/read-string (slurp "responses.edn"))))
+(def responses (atom (try (edn/read-string (slurp "responses.edn"))
+                          (catch Exception e ["hi"]))))
 
 (defonce server (start-server :port (:nrepl-port config)
                               :handler cider-nrepl-handler))
