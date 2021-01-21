@@ -179,6 +179,7 @@
           (command? "add" content) (add-response content channel-id)
           (command? "remove" content) (remove-response content channel-id)
           (command? "list" content) (list-responses channel-id)
+          (command? "help" content) (create-message! channel-id "lol u dumb")
           (mentions-me? mentions) (respond content channel-id))))
 
 (defmethod handle-event :typing-start
