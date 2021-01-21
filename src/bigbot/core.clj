@@ -156,18 +156,23 @@
 
 (defn add-response [message channel-id]
   (let [response (drop-command message)]
-    (swap! responses conj response)
-    (spit "responses.edn" @responses)
-    (create-message! channel-id (str "Added **" response "** to responses"))))
+    (if (empty? response)
+      (create-message! channel-id "Missing response to add")
+      (do
+        (swap! responses #(vec (distinct (conj % response))))
+        (spit "responses.edn" @responses)
+        (create-message! channel-id (str "Added **" response "** to responses"))))))
 
 (defn remove-response [message channel-id]
   (let [response (drop-command message)]
-    (if (some #{response} @responses)
-      (do
-        (swap! responses #(vec (remove (partial = response) %)))
-        (spit "responses.edn" @responses)
-        (create-message! channel-id (str "Removed **" response "** from responses")))
-      (create-message! channel-id (str "Response **" response "** not found")))))
+    (if (empty? response)
+      (create-message! channel-id "Missing response to remove")
+      (if (some #{response} @responses)
+        (do
+          (swap! responses #(vec (remove (partial = response) %)))
+          (spit "responses.edn" @responses)
+          (create-message! channel-id (str "Removed **" response "** from responses")))
+        (create-message! channel-id (str "Response **" response "** not found"))))))
 
 (defn list-responses [channel-id]
   (create-message! channel-id (str/join "\n" @responses)))
