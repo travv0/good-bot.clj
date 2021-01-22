@@ -4,4 +4,4 @@
  :urban-key "" ; urbandictionary api token
  :nrepl-port 7888 ; port to pass to nrepl start-server
  :command-prefix "!" ; prefix to use for bot commands
- :playing nil} ; "playing" status in discord user list
+ :db-file "db.edn"} ; file to store stuff configurable on the discord-end

@@ -14,3 +14,5 @@ pom.xml.asc
 \#*
 config.edn
 responses.edn
+test-*
+db.edn
