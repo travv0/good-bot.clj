@@ -17,13 +17,7 @@
 
 (defonce bot-id (atom nil))
 
-(defonce dict-key (atom nil))
-
-(defonce urban-key (atom nil))
-
-(defonce command-prefix (atom nil))
-
-(defonce db-file (atom nil))
+(defonce config (atom nil))
 
 (defonce db (atom nil))
 
@@ -37,10 +31,10 @@
                                 :content msg))
 
 (defn command? [command msg]
-  (-> msg str/lower-case (str/starts-with? (str @command-prefix command))))
+  (-> msg str/lower-case (str/starts-with? (str (:command-prefix @config) command))))
 
 (defn drop-command [message]
-  (let [without-prefix (str/replace-first message @command-prefix "")]
+  (let [without-prefix (str/replace-first message (:command-prefix @config) "")]
     (str/join " " (rest (str/split without-prefix #" ")))))
 
 (defn russian-roulette [guild-id channel-id author]
@@ -69,12 +63,12 @@
             "\n" definitions)))))
 
 (defn get-merriam-output [word]
-  (when @dict-key
+  (when (:dict-key @config)
     (let [response (json/read-str
                     (:body
                      (http/get (str "https://dictionaryapi.com/api/v3/references/collegiate/json/"
                                     word)
-                               {:query-params {:key @dict-key}})))
+                               {:query-params {:key (:dict-key @config)}})))
           result (->> response
                       (map #(build-define-output word
                                                  (get % "shortdef")
@@ -84,12 +78,12 @@
       (if (empty? result) nil result))))
 
 (defn get-urban-output [word]
-  (when @urban-key
+  (when (:urban-key @config)
     (let [response (json/read-str
                     (:body
                      (http/get "https://mashape-community-urban-dictionary.p.rapidapi.com/define"
                                {:query-params {:term word}
-                                :headers {:x-rapidapi-key @urban-key
+                                :headers {:x-rapidapi-key (:urban-key @config)
                                           :x-rapidapi-host "mashape-community-urban-dictionary.p.rapidapi.com"
                                           :useQueryString "true"}})))
           result (->> (get response "list")
@@ -150,13 +144,16 @@
 
            :else (rand-nth (:responses @db))))))
 
+(defn write-db! []
+  (spit (:db-file @config) @db))
+
 (defn add-response [message channel-id]
   (let [response (drop-command message)]
     (if (empty? response)
       (create-message! channel-id "Missing response to add")
       (do
         (swap! db (fn [d] (update d :responses #(vec (distinct (conj % response))))))
-        (spit @db-file @db)
+        (write-db!)
         (create-message! channel-id (str "Added **" response "** to responses"))))))
 
 (defn remove-response [message channel-id]
@@ -166,7 +163,7 @@
       (if (some #{response} (:responses @db))
         (do
           (swap! db (fn [d] (update d :responses #(vec (remove (partial = response) %)))))
-          (spit @db-file @db)
+          (write-db!)
           (create-message! channel-id (str "Removed **" response "** from responses")))
         (create-message! channel-id (str "Response **" response "** not found"))))))
 
@@ -180,7 +177,7 @@
                                      :activity (discord-ws/create-activity :name status))
           (swap! db (fn [d] (assoc d :status status)))
           (create-message! channel-id (str "Updated status to **" status "**"))))
-    (spit @db-file @db)))
+    (write-db!)))
 
 (defn list-responses [channel-id]
   (create-message! channel-id (str/join "\n" (:responses @db))))
@@ -229,22 +226,23 @@
   (close! events))
 
 (defn initialize! [config-file]
-  (let [config (edn/read-string (slurp config-file))]
-    (reset! dict-key (let [key (:dict-key config)]
-                       (if (empty? key) nil key)))
-    (reset! urban-key (let [key (:urban-key config)]
-                        (if (empty? key) nil key)))
-    (reset! command-prefix (or (:command-prefix config) "!"))
-    (reset! db-file (or (:db-file config) "db.edn"))
-    (reset! db (edn/read-string (try (slurp @db-file) (catch Exception e))))
+  (let [file-config (edn/read-string (slurp config-file))]
+    (reset! config
+            {:dict-key (let [key (:dict-key file-config)]
+                         (if (empty? key) nil key))
+             :urban-key (let [key (:urban-key file-config)]
+                          (if (empty? key) nil key))
+             :command-prefix (or (:command-prefix file-config) "!")
+             :db-file (or (:db-file file-config) "db.edn")})
+    (reset! db (edn/read-string (try (slurp (:db-file @config)) (catch Exception e))))
     (when-not @server
-      (reset! server (start-server :port (:nrepl-port config)
+      (reset! server (start-server :port (:nrepl-port file-config)
                                    :handler cider-nrepl-handler)))
     (when @state
       (stop-bot! @state))
-    (reset! state (start-bot! (:token config) :guild-messages :guild-message-typing))
+    (reset! state (start-bot! (:token file-config) :guild-messages :guild-message-typing))
     (reset! bot-id (:id @(discord-rest/get-current-user! (:rest @state))))
-    config))
+    file-config))
 
 (defn -main [& args]
   (let [[config-file] args]
