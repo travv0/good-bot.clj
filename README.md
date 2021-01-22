@@ -1,4 +1,4 @@
-# bigbot
+# good bot
 
 A Discord bot designed to... well, that part is up to you.
 

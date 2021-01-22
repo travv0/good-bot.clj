@@ -1,4 +1,4 @@
-(ns bigbot.core
+(ns good-bot.core
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
             [clojure.data.json :as json]
